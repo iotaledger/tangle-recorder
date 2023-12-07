@@ -1,0 +1,7 @@
+.idea/
+.vscode/
+.env
+node_modules/
+recordedMinified.json
+recordedMinifiedWithBlock.json
+*.log
