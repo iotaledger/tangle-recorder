@@ -1,4 +1,4 @@
-import {    
+import {
   Block,
   Client,
   initLogger,
@@ -14,6 +14,7 @@ import fs, { read } from 'fs';
 require('dotenv').config({ path: '.env' });
 
 let counter = 0;
+const TIME_LIMIT = 10000; // 10 seconds in milliseconds
 
 async function writeToFile(dataObject: any, filePath: string): Promise<void> {
   try {
@@ -56,6 +57,7 @@ async function run() {
     protocol: '',
     network: '',
   };
+  const startTime = new Date().getTime();
   const recordedBlocks: RecorderBlock[] = [];
 
   const callback = async function (error: Error, data: string) {
@@ -78,10 +80,11 @@ async function run() {
             counter++;
           }
 
-          if (limitReached()) {
-            recorded.end = new Date().getTime();
+          const currentTime = new Date().getTime();
+
+          if (currentTime - startTime >= TIME_LIMIT) {
+            recorded.end = currentTime;
             recorded.recordedBlocks = recordedBlocks;
-            console.log('Recorded length', recordedBlocks.length);
             await client.clearMqttListeners(topics);
             // await writeToFile(recorded, 'recorded.json');
             // minify and record
