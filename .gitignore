@@ -2,6 +2,5 @@
 .vscode/
 .env
 node_modules/
-recordedMinified.json
-recordedMinifiedWithBlock.json
+recorded*.json
 *.log

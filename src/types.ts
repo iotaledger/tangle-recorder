@@ -1,19 +1,19 @@
-import {    
+import {
   Block
 } from "@iota/sdk";
 
 export type RecorderBlock = {
   id: string;
-  timestamp: number;
+  timestampRec: number;
   block?: Block;
 }
 
 export type Recorder = {
   start: number;
-  end: number;
+  end: number | null;
   network: string;
   protocol: string;
-  recordedBlocks: RecorderBlock[]; // info from network
+  blocks: RecorderBlock[]; // info from network
 }
 
 export type Parsed = {

@@ -1,4 +1,4 @@
-import {    
+import {
   Block,
   Client,
   initLogger,
@@ -18,7 +18,7 @@ export const getMilestonePayload = (milestone: any) => {
   return payload;
 };
 
-export const blockMapper = (parsed: Parsed): RecorderBlock | null => {
+export const blockMapper = (parsed: Parsed, currentTime: number): RecorderBlock | null => {
   const block = plainToInstance(Block, JSON.parse(parsed.payload));
 
   // @ts-expect-error this type doesn't exist in the @iota/sdk
@@ -29,14 +29,13 @@ export const blockMapper = (parsed: Parsed): RecorderBlock | null => {
 
     const recorderBlock: RecorderBlock = {
       id: blockId,
-      timestamp: new Date().getTime(),
-      // block: block,
+      timestampRec: currentTime,
+      block: block,
     };
     return recorderBlock;
   } catch {
     return null;
   }
-  // const found = await client.getBlock('0x5787298d43bca85d122ef2744556306088899a31ba5fb16b53b82bfd19e138c6');
 }
 
 export const generateBlocks = (block: RecorderBlock, numberForGenerate: number) => {
