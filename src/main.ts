@@ -1,19 +1,15 @@
-import {    
-  Block,
+import {
   Client,
   initLogger,
-  MilestonePayload,
-  parsePayload,
-  Utils,
 } from "@iota/sdk";
-import { topics, MAX_BLOCKS } from './constants';
-import { blockMapper, getMilestonePayload, generateBlocks } from './helpers';
+import { topics } from './constants';
+import { blockMapper, getMilestonePayload } from './helpers';
 import { Recorder, Parsed, RecorderBlock } from "./types";
-import fs, { read } from 'fs';
+import fs from 'fs';
 
 require('dotenv').config({ path: '.env' });
 
-let counter = 0;
+const TIME_LIMIT = 10000; // 10 seconds in milliseconds
 
 async function writeToFile(dataObject: any, filePath: string): Promise<void> {
   try {
@@ -30,31 +26,32 @@ async function writeToFile(dataObject: any, filePath: string): Promise<void> {
   }
 }
 
-const limitReached = () => {
-  console.log(counter);
-  return counter >= MAX_BLOCKS;
+const limitReached = (startTime: number, currentTime: number) => {
+  return currentTime - startTime >= TIME_LIMIT;
 };
 
 async function run() {
   initLogger();
-  if (!process.env.NODE_URL) {
-      throw new Error('.env NODE_URL is undefined, see .env.example');
+  if (!process.env.NETWORK_API) {
+      throw new Error('.env NETWORK_API is undefined, see .env.example');
   }
 
   // Connecting to a MQTT broker using raw ip doesn't work with TCP. This is a limitation of rustls.
   const client = new Client({
       // Insert your node URL in the .env.
-      nodes: [process.env.NODE_URL],
+      nodes: [process.env.NETWORK_API],
   });
 
   // Array of topics to subscribe to
   // Topics can be found here https://studio.asyncapi.com/?url=https://raw.githubusercontent.com/iotaledger/tips/main/tips/TIP-0028/event-api.yml
 
-  // @ts-ignore
+  const startTime = new Date().getTime();
   const recorded: Recorder = {
     start: new Date().getTime(),
-    protocol: '',
-    network: '',
+    protocol: process.env.PROTOCOL || '',
+    network: process.env.NETWORK_NAME || '',
+    end: null,
+    blocks: [],
   };
   const recordedBlocks: RecorderBlock[] = [];
 
@@ -69,28 +66,25 @@ async function run() {
       if (parsed.topic == 'milestone') {
         const milestonePayload = getMilestonePayload(parsed);
       } else if (parsed.topic == 'blocks') {
-          const mappedBlock = blockMapper(parsed);
+          const currentTime = new Date().getTime();
+          const mappedBlock = blockMapper(parsed, currentTime);
 
           if (mappedBlock) {
             recordedBlocks.push(mappedBlock);
-            const generatedBlocks = generateBlocks(mappedBlock, 200);
-            recordedBlocks.push(...generatedBlocks);
-            counter++;
           }
 
-          if (limitReached()) {
-            recorded.end = new Date().getTime();
-            recorded.recordedBlocks = recordedBlocks;
-            console.log('Recorded length', recordedBlocks.length);
+
+          if (limitReached(startTime, currentTime)) {
+            recorded.end = currentTime;
+            recorded.blocks = recordedBlocks;
             await client.clearMqttListeners(topics);
-            // await writeToFile(recorded, 'recorded.json');
+            await writeToFile(recorded, 'recordedFeed.json');
             // minify and record
-            await writeToFile(JSON.stringify(recorded, null, 0), 'recordedMinified.json');
+            // await writeToFile(JSON.stringify(recorded, null, 0), 'recordedMinifiedFeed.json');
             process.exit(0);
           }
       }
   };
-
 
   await client.listenMqtt(topics, callback);
 }
